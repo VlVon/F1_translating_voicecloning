@@ -1,0 +1,78 @@
+networks:
+  f1-network:
+    driver: bridge
+
+services:
+  diarization_service:
+    build: ./diarization_service
+    container_name: diarization_service
+    ports:
+      - "5001:5001"
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    volumes:
+      - ./data/reference_speakers_emb:/app/reference_speakers_emb
+    networks:
+      - f1-network
+
+  transcription_service:
+    build: ./transcription_service
+    container_name: transcription_service
+    ports:
+      - "5002:5002"
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    networks:
+      - f1-network
+
+  translation_service:
+    build: ./translation_service
+    container_name: translation_service
+    ports:
+      - "5003:5003"
+    environment:
+      - DEEPL_TOKEN=${DEEPL_TOKEN}
+    networks:
+      - f1-network
+
+  voicecloning_service:
+    build: ./voicecloning_service
+    container_name: voicecloning_service
+    ports:
+      - "5004:5004"
+    environment:
+      - ELEVENLABS_TOKEN=${ELEVENLABS_TOKEN}
+    volumes:
+      - ./data/reference_speakers_clone:/app/reference_speakers_clone
+    networks:
+      - f1-network
+
+  orchestrator:
+    build: ./orchestrator
+    container_name: orchestrator
+    ports:
+      - "5005:5005"
+    depends_on:
+      - diarization_service
+      - transcription_service
+      - translation_service
+      - voicecloning_service
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - DEEPL_TOKEN=${DEEPL_TOKEN}
+      - ELEVENLABS_TOKEN=${ELEVENLABS_TOKEN}
+    networks:
+      - f1-network
+
+  telegram_bot:
+    build: ./telegram_bot
+    container_name: telegram_bot
+    depends_on:
+      - orchestrator
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - HF_TOKEN=${HF_TOKEN}
+      - DEEPL_TOKEN=${DEEPL_TOKEN}
+      - ELEVENLABS_TOKEN=${ELEVENLABS_TOKEN}
+    networks:
+      - f1-network
